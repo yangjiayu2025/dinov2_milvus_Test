@@ -6,9 +6,14 @@ MILVUS_HOST = os.getenv("MILVUS_HOST", "192.168.1.174")
 MILVUS_PORT = os.getenv("MILVUS_PORT", "31278")
 COLLECTION_NAME = "patent_images"
 
-# DINOv2 配置
+# DINOv2 配置 (Small 模型)
 DINOV2_MODEL = "facebook/dinov2-small"
 EMBEDDING_DIM = 384
+
+# DINOv2 配置 (Base 模型)
+DINOV2_BASE_MODEL = "facebook/dinov2-base"
+EMBEDDING_DIM_BASE = 768
+COLLECTION_NAME_BASE = "patent_images_base"
 
 # 图片目录
 IMAGE_DIR = os.getenv("IMAGE_DIR", "testImage")

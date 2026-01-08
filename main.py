@@ -4,8 +4,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import search, batch, image
+from app.api import search, batch, image, search_base, batch_base
 from app.services.milvus_service import milvus_service
+from app.services.milvus_base_service import milvus_base_service
 
 
 def init_milvus_in_background():
@@ -23,6 +24,21 @@ def init_milvus_in_background():
         traceback.print_exc()
 
 
+def init_milvus_base_in_background():
+    """在后台线程中初始化 Milvus Base（避免阻塞应用启动）"""
+    try:
+        print("[MILVUS-BASE-INIT] Background initialization starting...")
+        milvus_base_service.connect()
+        milvus_base_service.create_collection()
+        milvus_base_service.create_index()
+        milvus_base_service.load_collection()
+        print("[MILVUS-BASE-INIT] Background initialization completed")
+    except Exception as e:
+        print(f"[MILVUS-BASE-INIT] Background initialization failed: {e}")
+        import traceback
+        traceback.print_exc()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
@@ -34,6 +50,11 @@ async def lifespan(app: FastAPI):
     print("[APP] Starting Milvus initialization in background thread...")
     init_thread = threading.Thread(target=init_milvus_in_background, daemon=True)
     init_thread.start()
+
+    # 初始化 Base 模型的 Milvus collection
+    print("[APP] Starting Milvus Base initialization in background thread...")
+    init_base_thread = threading.Thread(target=init_milvus_base_in_background, daemon=True)
+    init_base_thread.start()
 
     print("=" * 50)
     print("[APP] Application started!")
@@ -68,6 +89,10 @@ app.add_middleware(
 app.include_router(search.router)
 app.include_router(batch.router)
 app.include_router(image.router)
+
+# 注册 Base 模型路由
+app.include_router(search_base.router)
+app.include_router(batch_base.router)
 
 
 @app.get("/")
