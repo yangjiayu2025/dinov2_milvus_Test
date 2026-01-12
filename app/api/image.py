@@ -5,7 +5,8 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from PIL import Image
 
-from app.config import IMAGE_DIRS, THUMBNAIL_DIR
+from app.config import IMAGE_DIRS, THUMBNAIL_DIR, MINIO_ENDPOINT, MINIO_BUCKET
+from app.services.minio_service import minio_service
 
 router = APIRouter(prefix="/api/image", tags=["image"])
 
@@ -19,6 +20,33 @@ def find_image(file_name: str) -> str | None:
     return None
 
 
+def get_minio_object_name(file_name: str) -> str | None:
+    """根据文件名确定 MinIO 对象名"""
+    # 尝试 testImage 目录
+    object_name = f"testImage/{file_name}"
+    if minio_service.file_exists(object_name):
+        return object_name
+
+    # 尝试 ruiguan 目录
+    object_name = f"ruiguan/{file_name}"
+    if minio_service.file_exists(object_name):
+        return object_name
+
+    return None
+
+
+def load_image_from_minio(object_name: str) -> Image.Image | None:
+    """从 MinIO 加载图片"""
+    try:
+        data = minio_service.download_file(object_name)
+        if data:
+            img = Image.open(io.BytesIO(data))
+            return img
+    except Exception as e:
+        print(f"[IMAGE] Failed to load from MinIO: {e}")
+    return None
+
+
 @router.get("/{file_name}")
 async def get_thumbnail(file_name: str):
     """获取缩略图"""
@@ -29,14 +57,28 @@ async def get_thumbnail(file_name: str):
     if os.path.exists(thumbnail_path):
         return FileResponse(thumbnail_path, media_type="image/jpeg")
 
-    # 如果缩略图不存在，尝试从多个目录查找原图
+    # 尝试从本地多个目录查找原图
     original_path = find_image(file_name)
-    if not original_path:
+    img = None
+
+    if original_path:
+        try:
+            img = Image.open(original_path)
+        except Exception as e:
+            print(f"[IMAGE] Failed to open local file: {e}")
+
+    # 如果本地没找到，尝试从 MinIO 获取
+    if img is None:
+        minio_service.connect()
+        object_name = get_minio_object_name(file_name)
+        if object_name:
+            img = load_image_from_minio(object_name)
+
+    if img is None:
         raise HTTPException(status_code=404, detail="Image not found")
 
     # 实时转换
     try:
-        img = Image.open(original_path)
         if hasattr(img, "n_frames") and img.n_frames > 1:
             img.seek(0)
         img = img.convert("RGB")
@@ -55,12 +97,25 @@ async def get_thumbnail(file_name: str):
 async def get_full_image(file_name: str):
     """获取原图（转换为 JPEG）"""
     original_path = find_image(file_name)
+    img = None
 
-    if not original_path:
+    if original_path:
+        try:
+            img = Image.open(original_path)
+        except Exception as e:
+            print(f"[IMAGE] Failed to open local file: {e}")
+
+    # 如果本地没找到，尝试从 MinIO 获取
+    if img is None:
+        minio_service.connect()
+        object_name = get_minio_object_name(file_name)
+        if object_name:
+            img = load_image_from_minio(object_name)
+
+    if img is None:
         raise HTTPException(status_code=404, detail="Image not found")
 
     try:
-        img = Image.open(original_path)
         if hasattr(img, "n_frames") and img.n_frames > 1:
             img.seek(0)
         img = img.convert("RGB")

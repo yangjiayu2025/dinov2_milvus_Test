@@ -33,6 +33,17 @@ MILVUS_INSERT_BATCH = 100
 DEFAULT_TOP_K = 10
 DEFAULT_MIN_SCORE = 0.4
 
+# MinIO 配置
+MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "192.168.1.174:9000")
+MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "admin")
+MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "trizhi2026")
+MINIO_BUCKET = os.getenv("MINIO_BUCKET", "trizhi01")
+MINIO_SECURE = False  # HTTP
+
+# 睿观 collection 配置 (新名称格式)
+COLLECTION_NAME_RUIGUAN = "ruiguan_images_base_20260109"
+COLLECTION_NAME_PATENT_NEW = "patent_images_base_20260109"
+
 # 索引配置
 INDEX_PARAMS = {
     "index_type": "IVF_FLAT",

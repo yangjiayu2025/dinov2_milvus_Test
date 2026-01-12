@@ -4,9 +4,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import search, batch, image, search_base, batch_base
+from app.api import search, batch, image, search_base, batch_base, search_design
 from app.services.milvus_service import milvus_service
 from app.services.milvus_base_service import milvus_base_service
+from app.services.design_patent_service import design_patent_service
 
 
 def init_milvus_in_background():
@@ -39,6 +40,20 @@ def init_milvus_base_in_background():
         traceback.print_exc()
 
 
+def init_design_patent_in_background():
+    """在后台线程中初始化外观专利 Collection"""
+    try:
+        print("[DESIGN-INIT] Background initialization starting...")
+        design_patent_service.connect()
+        collection = design_patent_service.get_collection()
+        collection.load()
+        print("[DESIGN-INIT] Background initialization completed")
+    except Exception as e:
+        print(f"[DESIGN-INIT] Background initialization failed: {e}")
+        import traceback
+        traceback.print_exc()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
@@ -55,6 +70,11 @@ async def lifespan(app: FastAPI):
     print("[APP] Starting Milvus Base initialization in background thread...")
     init_base_thread = threading.Thread(target=init_milvus_base_in_background, daemon=True)
     init_base_thread.start()
+
+    # 初始化外观专利 Collection
+    print("[APP] Starting Design Patent initialization in background thread...")
+    init_design_thread = threading.Thread(target=init_design_patent_in_background, daemon=True)
+    init_design_thread.start()
 
     print("=" * 50)
     print("[APP] Application started!")
@@ -93,6 +113,9 @@ app.include_router(image.router)
 # 注册 Base 模型路由
 app.include_router(search_base.router)
 app.include_router(batch_base.router)
+
+# 注册外观专利路由
+app.include_router(search_design.router)
 
 
 @app.get("/")

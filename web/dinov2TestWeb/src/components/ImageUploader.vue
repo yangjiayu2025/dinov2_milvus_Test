@@ -34,10 +34,9 @@ function handleFileSelect(e) {
 }
 
 function handleFile(file) {
-  // 验证文件类型
-  const validTypes = ['image/tiff', 'image/jpeg', 'image/png', 'image/gif']
-  if (!validTypes.includes(file.type) && !file.name.toLowerCase().endsWith('.tif')) {
-    alert('请上传 TIF、JPG、PNG 格式的图片')
+  // 验证是图片类型（支持任意图片格式）
+  if (!file.type.startsWith('image/') && !isImageFile(file.name)) {
+    alert('请上传图片文件')
     return
   }
 
@@ -52,6 +51,13 @@ function handleFile(file) {
 
   // 触发搜索
   emit('upload', file)
+}
+
+// 根据文件扩展名判断是否为图片
+function isImageFile(fileName) {
+  const ext = fileName.toLowerCase().split('.').pop()
+  const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tif', 'tiff', 'svg', 'ico', 'heic', 'heif', 'avif']
+  return imageExts.includes(ext)
 }
 
 function clearSelection() {
@@ -74,7 +80,7 @@ function clearSelection() {
       <input
         ref="fileInput"
         type="file"
-        accept=".tif,.tiff,.jpg,.jpeg,.png"
+        accept="image/*"
         style="display: none"
         @change="handleFileSelect"
       />
@@ -86,7 +92,7 @@ function clearSelection() {
           </svg>
         </div>
         <p class="upload-text">拖拽图片到此处，或点击上传</p>
-        <p class="upload-hint">支持 TIF / JPG / PNG</p>
+        <p class="upload-hint">支持所有常见图片格式</p>
       </template>
 
       <template v-else>
